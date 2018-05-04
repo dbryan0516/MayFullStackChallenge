@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+
+	"./contract"
 )
 
 type Settings struct {
@@ -19,7 +21,7 @@ type Settings struct {
 }
 
 var settings Settings
-var simpleStorage SimpleStorage
+var simpleStorage contract.SimpleStorage
 var contractAddress common.Address
 var deploymentTx types.Transaction
 
@@ -88,7 +90,7 @@ func deployContract(w http.ResponseWriter, r *http.Request){
 		w.Write([]byte(err.Error()))
 	}
 
-	address, tx, contract, err := DeploySimpleStorage(auth, conn)
+	address, tx, contract, err := contract.DeploySimpleStorage(auth, conn)
 	if err != nil {
 		w.Write([]byte(err.Error()))
 	}
