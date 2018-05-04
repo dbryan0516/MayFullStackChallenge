@@ -16,6 +16,22 @@ import (
 // SimpleStorageABI is the input ABI used to generate the binding from.
 const SimpleStorageABI = "[{\"constant\":false,\"inputs\":[{\"name\":\"x\",\"type\":\"uint256\"}],\"name\":\"set\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"get\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"}]"
 
+// SimpleStorageBin is the compiled bytecode used for deploying new contracts.
+const SimpleStorageBin = `608060405234801561001057600080fd5b5060df8061001f6000396000f3006080604052600436106049576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff16806360fe47b114604e5780636d4ce63c146078575b600080fd5b348015605957600080fd5b5060766004803603810190808035906020019092919050505060a0565b005b348015608357600080fd5b50608a60aa565b6040518082815260200191505060405180910390f35b8060008190555050565b600080549050905600a165627a7a723058207e739f45f077709fc006177fc74215af415a3d677343f26658a5cdbbb7f99dea0029`
+
+// DeploySimpleStorage deploys a new Ethereum contract, binding an instance of SimpleStorage to it.
+func DeploySimpleStorage(auth *bind.TransactOpts, backend bind.ContractBackend) (common.Address, *types.Transaction, *SimpleStorage, error) {
+	parsed, err := abi.JSON(strings.NewReader(SimpleStorageABI))
+	if err != nil {
+		return common.Address{}, nil, nil, err
+	}
+	address, tx, contract, err := bind.DeployContract(auth, parsed, common.FromHex(SimpleStorageBin), backend)
+	if err != nil {
+		return common.Address{}, nil, nil, err
+	}
+	return address, tx, &SimpleStorage{SimpleStorageCaller: SimpleStorageCaller{contract: contract}, SimpleStorageTransactor: SimpleStorageTransactor{contract: contract}, SimpleStorageFilterer: SimpleStorageFilterer{contract: contract}}, nil
+}
+
 // SimpleStorage is an auto generated Go binding around an Ethereum contract.
 type SimpleStorage struct {
 	SimpleStorageCaller     // Read-only binding to the contract
