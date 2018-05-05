@@ -11,9 +11,9 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 
-	"./contract"
 	"math/big"
 	"context"
+	"dbryan0516/MayFullStackChallenge/contract"
 )
 
 type Settings struct {
