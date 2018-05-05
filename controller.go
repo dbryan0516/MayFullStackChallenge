@@ -13,7 +13,7 @@ import (
 
 	"math/big"
 	"context"
-	"dbryan0516/MayFullStackChallenge/contract"
+	"github.com/dbryan0516/MayFullStackChallenge/contract"
 )
 
 type Settings struct {
