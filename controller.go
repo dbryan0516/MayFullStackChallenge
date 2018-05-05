@@ -12,6 +12,8 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 
 	"./contract"
+	"math/big"
+	"context"
 )
 
 type Settings struct {
@@ -28,8 +30,7 @@ var deploymentTx types.Transaction
 
 // This should take parameters but I felt it simpler to hardcode these values for the time being
 func initSettings() {
-	var settings Settings
-	keystoreFile := "./keystore.key"  	// keystore file for ETH address
+	keystoreFile := "keystore.key"  	// keystore file for ETH address
 	password := "quorumtest"        	// hardcoded for now
 	nodeUrl := "https://127.0.0.1:9001" // taken from the cli argument when creating constellation nodes
 
@@ -54,7 +55,7 @@ func getAuthentication() (*bind.TransactOpts, error){
 	//check that the keystore file exists
 	file, err := os.Open(settings.Keystore)
 	if err != nil {
-		log.Printf("Failed to open keystore file: %v\n", err)
+		fmt.Printf(fmt.Sprintf("File: %s\n", settings.Keystore))
 		return nil, err
 	}
 
@@ -73,16 +74,59 @@ func identify(r *http.Request){
 }
 
 func login(w http.ResponseWriter, r *http.Request){
-	identify(r)
+	//identify(r)
 	//TODO: implement function
 }
 
 func deployContract(w http.ResponseWriter, r *http.Request){
-	identify(r)
+	//identify(r)
 
 	conn, err := connectToNode()
 	if err != nil {
 		w.Write([]byte(err.Error()))
+		return
+	}
+
+	auth, err := getAuthentication()
+	if err != nil {
+		w.Write([]byte(err.Error()))
+		return
+	}
+
+	address, tx, ssContract, err := contract.DeploySimpleStorage(auth, conn)
+	if err != nil {
+		w.Write([]byte(err.Error()))
+		return
+	} else if *ssContract == (contract.SimpleStorage{}) {
+		w.Write([]byte("Error deploying contract: Contract empty"))
+		return
+	}
+
+	// save the contract and info for further use
+	simpleStorage = *ssContract
+	contractAddress = address
+	deploymentTx = *tx
+
+	//write response with address and transaction
+	response := fmt.Sprintf("{address: \"0x%x\", transactionId: \"0x%x\"}", address, tx.Hash())
+	w.Write([]byte(response))
+}
+
+func setData(w http.ResponseWriter, r *http.Request){
+	//identify(r)
+
+	vars := mux.Vars(r)
+	if vars == nil || len(vars) != 1 {
+		w.Write([]byte("Incorrect number of args passed, expecting 1 integer"))
+		return
+	}
+
+	// check that arg is an integer/big.Int
+	n := new(big.Int)
+	n, ok := n.SetString(vars["integer"], 10)
+	if !ok {
+		w.Write([]byte("Incorrect argument passed, expecting integer formatted string"))
+		return
 	}
 
 	auth, err := getAuthentication()
@@ -90,40 +134,77 @@ func deployContract(w http.ResponseWriter, r *http.Request){
 		w.Write([]byte(err.Error()))
 	}
 
-	address, tx, contract, err := contract.DeploySimpleStorage(auth, conn)
+	//set the value on the contract
+	tx, err := simpleStorage.Set(auth, n)
 	if err != nil {
-		w.Write([]byte(err.Error()))
+		w.Write([]byte("Incorrect argument passed, expecting integer formatted string"))
+		return
 	}
 
-	// save the contract and info for further use
-	simpleStorage = *contract
-	contractAddress = address
-	deploymentTx = *tx
-
-	//write response with address and transaction
-	response := fmt.Sprintf("{address: \"0x%x\", transaction: \"0x%x\"}", address, tx.Hash())
-
+	//return the transactionId
+	response := fmt.Sprintf("{transactionId: \"0x%x\"}", tx.Hash())
 	w.Write([]byte(response))
-}
 
-func setData(w http.ResponseWriter, r *http.Request){
-	identify(r)
-	vars := mux.Vars(r)
-	if vars == nil {
-		//error no parameters in POST call
-	}
-
-	//TODO: implement function
 }
 
 func getData(w http.ResponseWriter, r *http.Request){
-	identify(r)
+	//identify(r)
 	//TODO: implement function
 }
 
 func getTransaction(w http.ResponseWriter, r *http.Request){
-	identify(r)
-	//TODO: implement function
+	//identify(r)
+	vars := mux.Vars(r)
+	if vars == nil || len(vars) != 1 {
+		w.Write([]byte("Incorrect number of args passed, expecting 1"))
+		return
+	}
+
+	conn, err := connectToNode()
+	if err != nil {
+		w.Write([]byte(err.Error()))
+		return
+	}
+
+	//convert from hexadecimal to hash for lookup
+	// TODO: not sure how to error check here
+	hash := common.HexToHash(vars["id"])
+
+	//get the transaction by the hash
+	// TODO: not sure what context to use but Background doesnt seem like what I want
+	tx, pending, err := conn.TransactionByHash(context.TODO(), hash)
+	if err != nil {
+		// No transaction found
+		w.Write([]byte(err.Error()))
+		return
+	}
+
+	if pending {
+		w.Write([]byte("Transaction is still pending"))
+		return
+	}
+
+	chainId := tx.ChainId()
+	gas := tx.Gas() 		//gas limit not actual gas
+	data := tx.Data()		//tx payload
+
+	//src: https://github.com/ethereum/go-ethereum/issues/15069
+	var signer types.Signer
+	v, _,_ := tx.RawSignatureValues()
+	if v.Sign() != 0 && tx.Protected() {
+		signer = types.NewEIP155Signer(chainId)
+	} else {
+		signer = types.HomesteadSigner{}
+	}
+
+	sender, err := types.Sender(signer, tx)
+	if err != nil {
+		w.Write([]byte(err.Error()))
+		return
+	}
+
+	response := fmt.Sprintf("{transactionId: \"0x%x\", gas: \"%d\", data: \"%s\", sender: \"%s\"}", hash, gas, string(data), sender.String())
+	w.Write([]byte(response))
 }
 
 func main(){
@@ -134,7 +215,7 @@ func main(){
 	//but for the purpose of this exercise, I felt these were good enough
 	r.HandleFunc("/login", login).Methods("POST")
 	r.HandleFunc("/deployContract", deployContract).Methods("POST")
-	r.HandleFunc("/setData", setData).Methods("POST")
+	r.HandleFunc("/setData/{integer}", setData).Methods("POST")
 	r.HandleFunc("/getData", getData).Methods("GET")
 	r.HandleFunc("/getTransaction/{id}", getTransaction).Methods("GET")
 	log.Fatal(http.ListenAndServe(":12345", r))
