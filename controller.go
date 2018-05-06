@@ -83,19 +83,19 @@ func deployContract(w http.ResponseWriter, r *http.Request){
 
 	conn, err := connectToNode()
 	if err != nil {
-		w.Write([]byte(err.Error()))
+		w.Write([]byte(err.Error() + "\n"))
 		return
 	}
 
 	auth, err := getAuthentication()
 	if err != nil {
-		w.Write([]byte(err.Error()))
+		w.Write([]byte(err.Error() + "\n"))
 		return
 	}
 
 	address, tx, ssContract, err := contract.DeploySimpleStorage(auth, conn)
 	if err != nil {
-		w.Write([]byte(err.Error()))
+		w.Write([]byte(err.Error() + "\n"))
 		return
 	} else if *ssContract == (contract.SimpleStorage{}) {
 		w.Write([]byte("Error deploying contract: Contract empty"))
@@ -109,7 +109,7 @@ func deployContract(w http.ResponseWriter, r *http.Request){
 
 	//write response with address and transaction
 	response := fmt.Sprintf("{address: \"0x%x\", transactionId: \"0x%x\"}", address, tx.Hash())
-	w.Write([]byte(response))
+	w.Write([]byte(response + "\n"))
 }
 
 func setData(w http.ResponseWriter, r *http.Request){
@@ -131,7 +131,7 @@ func setData(w http.ResponseWriter, r *http.Request){
 
 	auth, err := getAuthentication()
 	if err != nil {
-		w.Write([]byte(err.Error()))
+		w.Write([]byte(err.Error() + "\n"))
 	}
 
 	//set the value on the contract
@@ -143,13 +143,23 @@ func setData(w http.ResponseWriter, r *http.Request){
 
 	//return the transactionId
 	response := fmt.Sprintf("{transactionId: \"0x%x\"}", tx.Hash())
-	w.Write([]byte(response))
+	w.Write([]byte(response + "\n"))
 
 }
 
 func getData(w http.ResponseWriter, r *http.Request){
 	//identify(r)
-	//TODO: implement function
+
+	//set the value on the contract
+	stored, err := simpleStorage.Get(&bind.CallOpts{Pending:true})
+	if err != nil {
+		w.Write([]byte(err.Error()))
+		return
+	}
+
+	//return the transactionId
+	response := fmt.Sprintf("{storedData: \"%s\"}", stored.String())
+	w.Write([]byte(response + "\n"))
 }
 
 func getTransaction(w http.ResponseWriter, r *http.Request){
@@ -162,7 +172,7 @@ func getTransaction(w http.ResponseWriter, r *http.Request){
 
 	conn, err := connectToNode()
 	if err != nil {
-		w.Write([]byte(err.Error()))
+		w.Write([]byte(err.Error() + "\n"))
 		return
 	}
 
@@ -175,12 +185,7 @@ func getTransaction(w http.ResponseWriter, r *http.Request){
 	tx, pending, err := conn.TransactionByHash(context.TODO(), hash)
 	if err != nil {
 		// No transaction found
-		w.Write([]byte(err.Error()))
-		return
-	}
-
-	if pending {
-		w.Write([]byte("Transaction is still pending"))
+		w.Write([]byte(err.Error() + "\n"))
 		return
 	}
 
@@ -199,12 +204,19 @@ func getTransaction(w http.ResponseWriter, r *http.Request){
 
 	sender, err := types.Sender(signer, tx)
 	if err != nil {
-		w.Write([]byte(err.Error()))
+		w.Write([]byte(err.Error() + "\n"))
 		return
 	}
 
-	response := fmt.Sprintf("{transactionId: \"0x%x\", gas: \"%d\", data: \"%s\", sender: \"%s\"}", hash, gas, string(data), sender.String())
-	w.Write([]byte(response))
+	var pendingString string
+	if pending {
+		pendingString = "true"
+	} else {
+		pendingString = "false"
+	}
+
+	response := fmt.Sprintf("{transactionId: \"0x%x\", pending: \"%s\" gas: \"%d\", data: \"%s\", sender: \"%s\"}", hash, pendingString, gas, string(data), sender.String())
+	w.Write([]byte(response + "\n"))
 }
 
 func main(){
@@ -217,6 +229,6 @@ func main(){
 	r.HandleFunc("/deployContract", deployContract).Methods("POST")
 	r.HandleFunc("/setData/{integer}", setData).Methods("POST")
 	r.HandleFunc("/getData", getData).Methods("GET")
-	r.HandleFunc("/getTransaction/{id}", getTransaction).Methods("GET")
+	r.HandleFunc("/getTransaction/{id}", getTransaction).Methods("POST")
 	log.Fatal(http.ListenAndServe(":12345", r))
 }
