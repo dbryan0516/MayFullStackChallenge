@@ -32,7 +32,7 @@ var deploymentTx types.Transaction
 func initSettings() {
 	keystoreFile := "keystore.key"  	// keystore file for ETH address
 	password := "quorumtest"        	// hardcoded for now
-	nodeUrl := "https://127.0.0.1:9001" // taken from the cli argument when creating constellation nodes
+	nodeUrl := "http://localhost:22000" // taken from the cli argument when creating constellation nodes
 
 	settings.Keystore = keystoreFile
 	settings.Password = password
