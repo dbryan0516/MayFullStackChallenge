@@ -16,6 +16,8 @@ Then build the project
 ```
 This pulls the necessary repos to build project.
 Now you must add a valid Ethereum keystore file to the MayFullStackChallenge directory, named Keystore.key
+** This implementation assumes a keystore file with the passphrase "quorumtest"
+
 
 Now running: ```go run controller.go &  ``` Runs the api handler in background so the user can execute curl commands in same window
   
