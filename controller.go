@@ -76,6 +76,7 @@ func identify(r *http.Request){
 func login(w http.ResponseWriter, r *http.Request){
 	//identify(r)
 	//TODO: implement function
+	w.Write([]byte("Not Implemented Yet\n"))
 }
 
 func deployContract(w http.ResponseWriter, r *http.Request){
@@ -151,7 +152,8 @@ func getData(w http.ResponseWriter, r *http.Request){
 	//identify(r)
 
 	//set the value on the contract
-	stored, err := simpleStorage.Get(&bind.CallOpts{Pending:true})
+	opts := bind.CallOpts{Pending: true}
+	stored, err := simpleStorage.Get(&opts)
 	if err != nil {
 		w.Write([]byte(err.Error()))
 		return
@@ -191,7 +193,6 @@ func getTransaction(w http.ResponseWriter, r *http.Request){
 
 	chainId := tx.ChainId()
 	gas := tx.Gas() 		//gas limit not actual gas
-	data := tx.Data()		//tx payload
 
 	//src: https://github.com/ethereum/go-ethereum/issues/15069
 	var signer types.Signer
@@ -215,7 +216,7 @@ func getTransaction(w http.ResponseWriter, r *http.Request){
 		pendingString = "false"
 	}
 
-	response := fmt.Sprintf("{transactionId: \"0x%x\", pending: \"%s\" gas: \"%d\", data: \"%s\", sender: \"%s\"}", hash, pendingString, gas, string(data), sender.String())
+	response := fmt.Sprintf("{transactionId: \"0x%x\", pending: \"%s\", gasLimit: \"%d\", sender: \"%s\"}", hash, pendingString, gas, sender.String())
 	w.Write([]byte(response + "\n"))
 }
 
