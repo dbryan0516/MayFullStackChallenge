@@ -24,11 +24,9 @@ type Settings struct {
 
 var settings Settings
 var simpleStorage contract.SimpleStorage
-var contractAddress common.Address
-var deploymentTx types.Transaction
 
-
-// This should take parameters but I felt it simpler to hardcode these values for the time being
+// This should take parameters or read from a file
+// but I felt it simpler to hardcode these values for the time being
 func initSettings() {
 	keystoreFile := "keystore.key"  	// keystore file for ETH address
 	password := "quorumtest"        	// hardcoded for now
@@ -38,7 +36,6 @@ func initSettings() {
 	settings.Password = password
 	settings.NodeURL = nodeUrl
 }
-
 
 // returns the Client pointer *ethclient.Client implements the bind.contractBackend interface, needed to deploy contract
 func connectToNode() (*ethclient.Client, error){
@@ -50,7 +47,7 @@ func connectToNode() (*ethclient.Client, error){
 	return client, nil
 }
 
-// bind.TransactOpts is the authentication needed to deploy contract
+// returns bind.TransactOpts is the authentication needed to deploy contract
 func getAuthentication() (*bind.TransactOpts, error){
 	//check that the keystore file exists
 	file, err := os.Open(settings.Keystore)
@@ -105,8 +102,6 @@ func deployContract(w http.ResponseWriter, r *http.Request){
 
 	// save the contract and info for further use
 	simpleStorage = *ssContract
-	contractAddress = address
-	deploymentTx = *tx
 
 	//write response with address and transaction
 	response := fmt.Sprintf("{address: \"0x%x\", transactionId: \"0x%x\"}", address, tx.Hash())
